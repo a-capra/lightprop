@@ -12,6 +12,12 @@ using namespace TMath;
 #include <TString.h>
 #include <TFile.h>
 
+#include <TApplication.h>
+#include <TCanvas.h>
+#include <TPolyLine3D.h>
+#include <TBRIK.h>
+#include <TAxis3D.h>
+
 #include <iostream>
 using std::cout;
 using std::cerr;
@@ -46,7 +52,7 @@ bool bounce_info=false;
 double reflectivity = 0.99;
 // SiPM plane
 TVector3 n0(0.,0.,-1.), p0;
-
+//std::vector<TPolyLine3D*> rays;
 double reflection(TVector3& SiPM, // output
 		  double& number_of_reflections,// output
 		  TVector3 u, TVector3 r0, // line vector
@@ -65,6 +71,14 @@ double reflection(TVector3& SiPM, // output
   double distance=0., z=0.;
   int Nrefl=1;
   TVector3 r0prime=r0, uprime = u;
+  // //  ray = new TPolyLine3D;
+  // TPolyLine3D* ray = new TPolyLine3D;
+  // ray->SetPoint(0,r0prime.X(),r0prime.Y(),r0prime.Z());
+  // //rays.emplace_back();
+  // //rays.back()->SetPoint(0,r0prime.X(),r0prime.Y(),r0prime.Z());
+  // //rays.back()->SetLineColor(kBlue);
+  // //rays.back()->SetLineWidth(2);
+
   while( z < length )
     {
       if( bounce_info )
@@ -135,10 +149,14 @@ double reflection(TVector3& SiPM, // output
 
       // reflection point
       r0prime = intersect;
+      // ray->SetPoint(Nrefl,r0prime.X(),r0prime.Y(),r0prime.Z());
+      // //rays.back()->SetPoint(Nrefl,r0prime.X(),r0prime.Y(),r0prime.Z());
 
       // incident angle
-      double thetai = uprime.Angle(n[m]) - PiOver2();
-      // cout<<"Reflection with angle "<<thetai*RadToDeg()<<" deg"<<endl;
+      //double thetai = uprime.Angle(n[m]) - PiOver2();
+      double thetai = n[m].Angle(uprime);
+      if( bounce_info )
+	cout<<"Incidence angle "<<thetai*RadToDeg()<<" deg ("<<(uprime.Angle(n[m])-PiOver2())*RadToDeg()<<" deg)"<<endl;
       
       // calculate direction of reflected ray
       // this is the right formula but it doesn't work
@@ -162,10 +180,11 @@ double reflection(TVector3& SiPM, // output
 	}
 
       // reflected angle
-      double thetaf = n[m].Angle(-uprime) - PiOver2();
+      //double thetaf = n[m].Angle(-uprime) - PiOver2();
+      double thetaf = n[m].Angle(-uprime);
       if( thetai != thetaf ) // worst fail
       	{
-	  cerr<<"Error: reflected angle "<<thetaf*RadToDeg()<<" != incident angle"<<thetai*RadToDeg()<<" deg"<<endl;
+	  cerr<<"Error: reflected angle "<<thetaf*RadToDeg()<<" != incident angle "<<thetai*RadToDeg()<<" deg"<<endl;
       	  return -4.;
       	}
 
@@ -176,7 +195,7 @@ double reflection(TVector3& SiPM, // output
       if( bounce_info )
 	{
 	  SmartPrint(uprime,"reflected ray direction u\'");
-	  SmartPrint(r0prime,"           from point r0\'");
+	  SmartPrint(r0prime,"            from point r0\'");
 	  SmartPrint(f,TString("SiPM plane f"));
 	}
 
@@ -197,6 +216,7 @@ double reflection(TVector3& SiPM, // output
 
       if( bounce_info ) cout<<"******************"<<endl;
     }
+  //  rays.push_back(ray);
   
   number_of_reflections = double(Nrefl);
   return distance;
@@ -213,6 +233,12 @@ int main(int argc, char** argv)
       alpha2 = (bool) atoi(argv[1]);
       Nph = atoi(argv[2]);
     }
+  else if( argc == 4 )
+    {
+      alpha2 = (bool) atoi(argv[1]);
+      Nph = atoi(argv[2]);
+      bounce_info = (bool) atoi(argv[3]);
+    }
 
   // geometry of the bar (ALPHA-g)
   double length = 2500., // mm
@@ -224,9 +250,11 @@ int main(int argc, char** argv)
       length = 1650.;
       sidex *= 2.;
     }
-
-  p0.SetXYZ(0.,0.,length);
   double halfsidex = 0.5*sidex, halfsidey = 0.5*sidey;
+
+  // SiPM position
+  p0.SetXYZ(0.,0.,length);
+  //  p0.SetXYZ(0.,0.,0.5*length);
 
   // line
   double ux,uy,uz; // slope
@@ -362,6 +390,22 @@ int main(int argc, char** argv)
 
   fout->Write();
   fout->Close();
+
+
+  // //TBRIK* bar = new TBRIK("bar","bar",0,halfsidex,halfsidey,0.5*length);
+  // // TBRIK* bar = new TBRIK("bar","bar",0,halfsidex,halfsidey,length);
+  // // bar->SetFillStyle(0);
+  // TApplication app("lightprop",&argc,argv);
+  // TAxis3D rulers;
+  // TCanvas* c1 = new TCanvas("c1","c1",1200,1000);
+  // c1->cd();
+  // //  rulers.Draw("ogl");
+  // rulers.Draw();
+  // //  bar->Draw("oglsame");
+  // //ray->Draw("oglsame");
+  // for(auto it = rays.begin(); it != rays.end(); ++it)
+  //   (*it)->Draw("same");
+  // app.Run();
 
   return 0;
 }
